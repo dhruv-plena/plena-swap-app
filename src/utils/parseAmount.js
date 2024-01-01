@@ -7,9 +7,7 @@ function countDecimals(x) {
   return x.toString().split(".")[1].length || 0;
 }
 
-export const parseAmountToRaw = async (amount, contract) => {
-  const decimals = await contract.decimals();
-
+export const parseAmountToRaw = async (amount, decimals) => {
   const extraDigits = Math.pow(10, countDecimals(amount))
   const adjustedAmount = amount * extraDigits
   return JSBI.divide(

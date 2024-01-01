@@ -12,7 +12,7 @@ import { hashMessage } from './helpers/utiliities';
 import SignMessageModal from './modals/SignMessageModal';
 import { parseAmountToRaw } from './utils/parseAmount';
 
-import { AlphaRouter, SwapOptionsSwapRouter02, SwapType } from '@uniswap/smart-order-router'
+import { AlphaRouter, SwapType } from '@uniswap/smart-order-router'
 import { Percent, CurrencyAmount, TradeType, Token } from '@uniswap/sdk-core'
 
 
@@ -186,7 +186,7 @@ function App() {
       6,
       'aPolUSDC',
       'USD Coin'
-    )
+    );
 
     const USDT = new Token(
       137,
@@ -194,33 +194,9 @@ function App() {
       6,
       'USDT',
       'Tether USD'
-    )
+    );
 
     const abi1 = [
-      {
-        inputs: [
-          {
-            internalType: 'address',
-            name: 'spender',
-            type: 'address',
-          },
-          {
-            internalType: 'uint256',
-            name: 'amount',
-            type: 'uint256',
-          },
-        ],
-        name: 'transfer',
-        outputs: [
-          {
-            internalType: 'bool',
-            name: '',
-            type: 'bool',
-          },
-        ],
-        stateMutability: 'nonpayable',
-        type: 'function',
-      },
       {
         inputs: [
           {
@@ -245,28 +221,13 @@ function App() {
         stateMutability: 'nonpayable',
         type: 'function'
       },
-      {
-        inputs: [],
-        name: 'decimals',
-        outputs: [
-          {
-            internalType: 'uint8',
-            name: '',
-            type: 'uint8'
-          }
-        ],
-        stateMutability: 'view',
-        type: 'function'
-      },
     ];
 
 
     const polygonProvider = new ethers.providers.JsonRpcProvider('https://polygon-rpc.com/');
 
     const Icontract = new ethers.utils.Interface(abi1);
-    const contract = new ethers.Contract(USDT_ADDRESS, Icontract, polygonProvider);
-
-    const [rawTokenAmountIn] = await parseAmountToRaw('1.0', contract);
+    const [rawTokenAmountIn] = await parseAmountToRaw('1.0', USDT.decimals);
 
     const approvalData = Icontract.encodeFunctionData('approve', [
       swapRouter02,
@@ -295,14 +256,7 @@ function App() {
       options
     );
 
-    const swapData ={
-      data: route.methodParameters.calldata,
-      to: swapRouter02,
-      value: route.methodParameters.value,
-      from: walletAddress,
-      maxFeePerGas: MAX_FEE_PER_GAS,
-      maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS,
-    }
+    const swapData = route.methodParameters.calldata;
 
     // Draft transaction
     const tx: IPlenaTxData = {
