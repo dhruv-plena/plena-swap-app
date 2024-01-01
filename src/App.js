@@ -10,12 +10,18 @@ import { convertUtf8ToHex } from '@plenaconnect/utils';
 import { eip1271 } from './helpers/eip1271';
 import { hashMessage } from './helpers/utiliities';
 import SignMessageModal from './modals/SignMessageModal';
+import { parseAmountToRaw } from './utils/parseAmount';
+
+import { AlphaRouter, SwapOptionsSwapRouter02, SwapType } from '@uniswap/smart-order-router'
+import { Percent, CurrencyAmount, TradeType, Token } from '@uniswap/sdk-core'
+
 
 function App() {
   const [pending, setPending] = useState(false);
   const [isSignModalOpen, setIsSignModalOpen] = useState(false);
   const [isTxnModalOpen, setIsTxnModalOpen] = useState(false);
   const [address, setAddress] = useState(null);
+  const [amount, setAmount] = useState(null);
   const [result, setResult] = useState(null);
   const [connector, setConnector] = useState(null);
   const { openModal, closeConnection, sendTransaction, walletAddress } =
@@ -163,6 +169,176 @@ function App() {
       setPending(false);
     }
   };
+
+  const testSwapTransaction = async () => {
+    openTxnModal();
+    setPending(true);
+
+    const swapRouter02 = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45';
+    const USDC_ADDRESS = '0x625E7708f30cA75bfd92586e17077590C60eb4cD';
+    const USDT_ADDRESS = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+    const MAX_FEE_PER_GAS = 100000000000;
+    const MAX_PRIORITY_FEE_PER_GAS = 100000000000;
+
+    const USDC = new Token(
+      137,
+      USDC_ADDRESS,
+      6,
+      'aPolUSDC',
+      'USD Coin'
+    )
+
+    const USDT = new Token(
+      137,
+      USDT_ADDRESS,
+      6,
+      'USDT',
+      'Tether USD'
+    )
+
+    const abi1 = [
+      {
+        inputs: [
+          {
+            internalType: 'address',
+            name: 'spender',
+            type: 'address',
+          },
+          {
+            internalType: 'uint256',
+            name: 'amount',
+            type: 'uint256',
+          },
+        ],
+        name: 'transfer',
+        outputs: [
+          {
+            internalType: 'bool',
+            name: '',
+            type: 'bool',
+          },
+        ],
+        stateMutability: 'nonpayable',
+        type: 'function',
+      },
+      {
+        inputs: [
+          {
+            internalType: 'address',
+            name: 'spender',
+            type: 'address'
+          },
+          {
+            internalType: 'uint256',
+            name: 'value',
+            type: 'uint256'
+          }
+        ],
+        name: 'approve',
+        outputs: [
+          {
+            internalType: 'bool',
+            name: '',
+            type: 'bool'
+          }
+        ],
+        stateMutability: 'nonpayable',
+        type: 'function'
+      },
+      {
+        inputs: [],
+        name: 'decimals',
+        outputs: [
+          {
+            internalType: 'uint8',
+            name: '',
+            type: 'uint8'
+          }
+        ],
+        stateMutability: 'view',
+        type: 'function'
+      },
+    ];
+
+
+    const polygonProvider = new ethers.providers.JsonRpcProvider('https://polygon-rpc.com/');
+
+    const Icontract = new ethers.utils.Interface(abi1);
+    const contract = new ethers.Contract(USDT_ADDRESS, Icontract, polygonProvider);
+
+    const [rawTokenAmountIn] = await parseAmountToRaw('1.0', contract);
+
+    const approvalData = Icontract.encodeFunctionData('approve', [
+      swapRouter02,
+      rawTokenAmountIn,
+    ]);
+
+    const router = new AlphaRouter({
+      chainId: 137,
+      provider: polygonProvider,
+    });
+
+    const options: SwapOptionsSwapRouter02 = {
+      recipient: walletAddress,
+      slippageTolerance: new Percent(50, 10_000),
+      deadline: Math.floor(Date.now() / 1000 + 1800),
+      type: SwapType.SWAP_ROUTER_02,
+    };
+
+    const route = await router.route(
+      CurrencyAmount.fromRawAmount(
+        USDT,
+        rawTokenAmountIn
+      ),
+      USDC,
+      TradeType.EXACT_INPUT,
+      options
+    );
+
+    const swapData ={
+      data: route.methodParameters.calldata,
+      to: swapRouter02,
+      value: route.methodParameters.value,
+      from: walletAddress,
+      maxFeePerGas: MAX_FEE_PER_GAS,
+      maxPriorityFeePerGas: MAX_PRIORITY_FEE_PER_GAS,
+    }
+
+    // Draft transaction
+    const tx: IPlenaTxData = {
+      from: walletAddress,
+      data: [approvalData, swapData],
+      to: [USDT_ADDRESS, swapRouter02],
+      tokens: ['', ''],
+      amounts: ['0x0', '0x0'],
+    };
+
+    try {
+      const res = await sendTransaction({
+        chain: 137,
+        method: 'send_transaction', // personal_sign
+        payload: {
+          transaction: tx,
+          // todo: payload of transaction
+        },
+      });
+      if (!res?.success) {
+        setResult(false);
+        return;
+      }
+      const formattedResult = {
+        method: 'send_transaction',
+        txHash: res?.content?.transactionHash,
+        from: walletAddress,
+      };
+      setResult(formattedResult);
+    } catch (error) {
+      setResult(null);
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <>
       {!walletAddress ? (
@@ -193,6 +369,13 @@ function App() {
                 cancelTransaction={cancelTransaction}
                 className='text-sm font-bold mx-2  mt-5'>
                 SendTransaction
+              </Button>
+              <Button
+                type='primary'
+                onClick={testSwapTransaction}
+                cancelTransaction={cancelTransaction}
+                className='text-sm font-bold mx-2  mt-5'>
+                SwapTransaction
               </Button>
             </div>
           </div>
