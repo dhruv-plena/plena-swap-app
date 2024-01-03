@@ -10,7 +10,7 @@ import { convertUtf8ToHex } from '@plenaconnect/utils';
 import { eip1271 } from './helpers/eip1271';
 import { hashMessage } from './helpers/utiliities';
 import SignMessageModal from './modals/SignMessageModal';
-import { parseAmountToRaw } from './utils/parseAmount';
+import { parseAmountToWei } from './utils/parseAmount';
 
 import { AlphaRouter, SwapType } from '@uniswap/smart-order-router'
 import { Percent, CurrencyAmount, TradeType, Token } from '@uniswap/sdk-core'
@@ -53,7 +53,7 @@ function App() {
 
   const cancelTransaction = () => {};
 
-  const testSendTransaction = async () => {
+  const testSendTxn = async () => {
     openTxnModal();
     setPending(true);
 
@@ -125,7 +125,7 @@ function App() {
     }
   };
 
-  const testSignTransaction = async () => {
+  const testSignTxn = async () => {
     openSignModal();
     setPending(true);
     try {
@@ -170,7 +170,7 @@ function App() {
     }
   };
 
-  const testSwapTransaction = async () => {
+  const testSwapTxn = async () => {
     openTxnModal();
     setPending(true);
 
@@ -227,7 +227,7 @@ function App() {
     const polygonProvider = new ethers.providers.JsonRpcProvider('https://polygon-rpc.com/');
 
     const Icontract = new ethers.utils.Interface(abi1);
-    const [rawTokenAmountIn] = await parseAmountToRaw('1.0', USDT.decimals);
+    const rawTokenAmountIn = parseAmountToWei('1.0', USDT.decimals);
 
     const approvalData = Icontract.encodeFunctionData('approve', [
       swapRouter02,
@@ -313,20 +313,20 @@ function App() {
             <div className='flex flex-col'>
               <Button
                 type='primary'
-                onClick={testSignTransaction}
+                onClick={testSignTxn}
                 className='text-sm font-bold mx-2'>
                 Personal Sign
               </Button>
               <Button
                 type='primary'
-                onClick={testSendTransaction}
+                onClick={testSendTxn}
                 cancelTransaction={cancelTransaction}
                 className='text-sm font-bold mx-2  mt-5'>
                 SendTransaction
               </Button>
               <Button
                 type='primary'
-                onClick={testSwapTransaction}
+                onClick={testSwapTxn}
                 cancelTransaction={cancelTransaction}
                 className='text-sm font-bold mx-2  mt-5'>
                 SwapTransaction
